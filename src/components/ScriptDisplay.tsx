@@ -451,29 +451,71 @@ Create a short (2-3 sentences) presenter's script that:
 
         // Now prefetch audio for the next slide
         if (!audioCache[nextPage] && nextScript) {
-          const apiKey = import.meta.env.VITE_DEEPGRAM_API_KEY
-          if (apiKey && apiKey !== 'your_deepgram_api_key_here') {
-            try {
-              const audioResponse = await fetch('https://api.deepgram.com/v1/speak?model=aura-2-hermes-en', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Token ${apiKey}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  text: nextScript,
-                }),
-              })
+          // Detect if next script is Dutch
+          const isDutch = (() => {
+            const dutchWords = [
+              'de', 'het', 'een', 'van', 'in', 'op', 'voor', 'met', 'aan', 'dat', 'dit',
+              'zijn', 'worden', 'hebben', 'kunnen', 'moeten', 'willen', 'gaan', 'maken',
+              'deze', 'zoals', 'maar', 'ook', 'niet', 'naar', 'door', 'over', 'om',
+              'bij', 'uit', 'naar', 'meer', 'andere', 'alle', 'veel', 'nog', 'wel',
+              'bijvoorbeeld', 'namelijk', 'waarom', 'hoe', 'wanneer', 'waar', 'wie'
+            ]
+            const lowerText = nextScript.toLowerCase()
+            const words = lowerText.split(/\s+/)
+            const dutchWordCount = words.filter(word =>
+              dutchWords.includes(word.replace(/[.,!?;:]$/, ''))
+            ).length
+            const threshold = words.length * 0.2
+            return dutchWordCount >= threshold && dutchWordCount >= 3
+          })()
 
-              if (audioResponse.ok) {
-                const audioBlob = await audioResponse.blob()
-                const audioUrl = URL.createObjectURL(audioBlob)
-                setAudioCache(prev => ({ ...prev, [nextPage]: audioUrl }))
-                console.log(`Prefetched audio for slide ${nextPage}`)
+          console.log(`Prefetching audio for slide ${nextPage} - Language: ${isDutch ? 'Dutch (ElevenLabs)' : 'English (Deepgram)'}`)
+
+          try {
+            let audioResponse
+            if (isDutch) {
+              // Use ElevenLabs for Dutch
+              const elevenlabsKey = import.meta.env.VITE_ELEVENLABS_API_KEY
+              const voiceId = import.meta.env.VITE_ELEVENLABS_DUTCH_VOICE_ID
+
+              if (elevenlabsKey && voiceId) {
+                audioResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+                  method: 'POST',
+                  headers: {
+                    'xi-api-key': elevenlabsKey,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    text: nextScript,
+                    model_id: 'eleven_multilingual_v2',
+                  }),
+                })
               }
-            } catch (audioError) {
-              console.error('Error prefetching audio:', audioError)
+            } else {
+              // Use Deepgram for other languages
+              const deepgramKey = import.meta.env.VITE_DEEPGRAM_API_KEY
+              if (deepgramKey && deepgramKey !== 'your_deepgram_api_key_here') {
+                audioResponse = await fetch('https://api.deepgram.com/v1/speak?model=aura-2-hermes-en', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Token ${deepgramKey}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    text: nextScript,
+                  }),
+                })
+              }
             }
+
+            if (audioResponse && audioResponse.ok) {
+              const audioBlob = await audioResponse.blob()
+              const audioUrl = URL.createObjectURL(audioBlob)
+              setAudioCache(prev => ({ ...prev, [nextPage]: audioUrl }))
+              console.log(`Prefetched ${isDutch ? 'ElevenLabs' : 'Deepgram'} audio for slide ${nextPage}`)
+            }
+          } catch (audioError) {
+            console.error('Error prefetching audio:', audioError)
           }
         }
       } catch (error) {

@@ -39,7 +39,92 @@ export default function AudioControls({ script, autoPlayTrigger, stopAudioTrigge
     }
   }, [currentPage])
 
-  const generateAudio = async (text: string, pageNumber: number): Promise<string | null> => {
+  // Detect if text is Dutch based on common Dutch words and patterns
+  const isDutchText = (text: string): boolean => {
+    const dutchWords = [
+      'de', 'het', 'een', 'van', 'in', 'op', 'voor', 'met', 'aan', 'dat', 'dit',
+      'zijn', 'worden', 'hebben', 'kunnen', 'moeten', 'willen', 'gaan', 'maken',
+      'deze', 'zoals', 'maar', 'ook', 'niet', 'naar', 'door', 'over', 'om',
+      'bij', 'uit', 'naar', 'meer', 'andere', 'alle', 'veel', 'nog', 'wel',
+      'bijvoorbeeld', 'namelijk', 'waarom', 'hoe', 'wanneer', 'waar', 'wie'
+    ]
+
+    const lowerText = text.toLowerCase()
+    const words = lowerText.split(/\s+/)
+
+    // Count how many Dutch words are present
+    const dutchWordCount = words.filter(word =>
+      dutchWords.includes(word.replace(/[.,!?;:]$/, ''))
+    ).length
+
+    // If more than 20% of words are common Dutch words, consider it Dutch
+    const threshold = words.length * 0.2
+    return dutchWordCount >= threshold && dutchWordCount >= 3
+  }
+
+  const generateAudioWithElevenLabs = async (text: string, pageNumber: number): Promise<string | null> => {
+    const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY
+    const voiceId = import.meta.env.VITE_ELEVENLABS_DUTCH_VOICE_ID
+
+    if (!apiKey || !voiceId) {
+      console.warn('ElevenLabs API key or voice ID not configured')
+      return null
+    }
+
+    // Create new abort controller for this request
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+
+    try {
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text,
+          model_id: 'eleven_multilingual_v2',
+        }),
+        signal: abortController.signal,
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('ElevenLabs API error response:', errorText)
+        throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText} - ${errorText}`)
+      }
+
+      // Check if we're still on the same page
+      if (currentPageRef.current !== pageNumber) {
+        console.log('Page changed during audio generation, aborting')
+        return null
+      }
+
+      const audioBlob = await response.blob()
+      console.log('ElevenLabs audio blob size:', audioBlob.size, 'bytes')
+
+      // Double-check page hasn't changed
+      if (currentPageRef.current !== pageNumber) {
+        console.log('Page changed after receiving audio, aborting')
+        return null
+      }
+
+      const audioUrl = URL.createObjectURL(audioBlob)
+      console.log('Generated ElevenLabs audio URL:', audioUrl)
+      return audioUrl
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Audio generation aborted')
+        return null
+      }
+      console.error('Error generating ElevenLabs audio:', error)
+      console.error('Error details:', error?.message)
+      return null
+    }
+  }
+
+  const generateAudioWithDeepgram = async (text: string, pageNumber: number): Promise<string | null> => {
     const apiKey = import.meta.env.VITE_DEEPGRAM_API_KEY
     if (!apiKey || apiKey === 'your_deepgram_api_key_here') {
       return null
@@ -75,7 +160,7 @@ export default function AudioControls({ script, autoPlayTrigger, stopAudioTrigge
       }
 
       const audioBlob = await response.blob()
-      console.log('Audio blob size:', audioBlob.size, 'bytes')
+      console.log('Deepgram audio blob size:', audioBlob.size, 'bytes')
 
       // Double-check page hasn't changed
       if (currentPageRef.current !== pageNumber) {
@@ -84,23 +169,37 @@ export default function AudioControls({ script, autoPlayTrigger, stopAudioTrigge
       }
 
       const audioUrl = URL.createObjectURL(audioBlob)
-      console.log('Generated audio URL:', audioUrl)
+      console.log('Generated Deepgram audio URL:', audioUrl)
       return audioUrl
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('Audio generation aborted')
         return null
       }
-      console.error('Error generating audio:', error)
+      console.error('Error generating Deepgram audio:', error)
       console.error('Error details:', error?.message)
       return null
     }
   }
 
+  const generateAudio = async (text: string, pageNumber: number): Promise<string | null> => {
+    // Detect language and choose appropriate TTS service
+    const isDutch = isDutchText(text)
+    console.log(`Detected language: ${isDutch ? 'Dutch (using ElevenLabs)' : 'English (using Deepgram)'}`)
+
+    if (isDutch) {
+      return await generateAudioWithElevenLabs(text, pageNumber)
+    } else {
+      return await generateAudioWithDeepgram(text, pageNumber)
+    }
+  }
+
   const generateAndPlayAudio = async () => {
-    const apiKey = import.meta.env.VITE_DEEPGRAM_API_KEY
-    if (!apiKey || apiKey === 'your_deepgram_api_key_here') {
-      console.warn('Deepgram API key not configured')
+    const deepgramKey = import.meta.env.VITE_DEEPGRAM_API_KEY
+    const elevenlabsKey = import.meta.env.VITE_ELEVENLABS_API_KEY
+
+    if ((!deepgramKey || deepgramKey === 'your_deepgram_api_key_here') && !elevenlabsKey) {
+      console.warn('No TTS API key configured (Deepgram or ElevenLabs)')
       return
     }
 
