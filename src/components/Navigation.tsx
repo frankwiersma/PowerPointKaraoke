@@ -17,26 +17,104 @@ export default function Navigation({ currentPage, setCurrentPage, totalPages }: 
     }
   }
 
+  const progress = (currentPage / totalPages) * 100
+
   return (
-    <div className="space-y-3">
-      <div className="text-center text-gray-400">
-        Slide <span className="text-white font-semibold">{currentPage}</span> / {totalPages}
+    <div className="space-y-2" style={{ padding: '0!important', margin: '0!important' }}>
+      {/* Progress Bar */}
+      <div className="relative">
+        <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 transition-all duration-500 ease-out relative overflow-hidden"
+            style={{ width: `${progress}%` }}
+          >
+            {/* Animated shine effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+          </div>
+        </div>
       </div>
 
-      <div className="flex gap-3">
+      {/* Page Counter */}
+      <div
+        className="rounded-lg p-2 text-center"
+        style={{
+          margin: '0!important',
+          background: 'rgba(30, 41, 59, 0.6)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          border: '1px solid rgba(168, 85, 247, 0.2)'
+        }}
+      >
+        <div className="flex items-center justify-center space-x-2" style={{ padding: '0!important', margin: '0!important' }}>
+          <span className="text-xs text-gray-300">Slide</span>
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 blur-lg opacity-50"></div>
+            <span className="relative text-2xl font-bold gradient-text">
+              {currentPage}
+            </span>
+          </div>
+          <span className="text-sm text-gray-400 font-light">/</span>
+          <span className="text-lg text-gray-300 font-semibold">{totalPages}</span>
+        </div>
+
+        {/* Percentage */}
+        <div className="mt-1">
+          <span className="text-xs text-gray-400 font-medium">
+            {Math.round(progress)}% complete
+          </span>
+        </div>
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex gap-2" style={{ padding: '0!important', margin: '0!important' }}>
         <button
           onClick={handlePrevious}
           disabled={currentPage === 1}
-          className="flex-1 py-2 px-4 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors"
+          className={`
+            flex-1 group relative overflow-hidden rounded-lg py-2 px-3 font-semibold text-sm
+            transition-all duration-300 transform
+            ${currentPage === 1
+              ? 'bg-gray-800/50 text-gray-600 cursor-not-allowed border border-gray-700/50'
+              : 'glass-light text-white hover:scale-[1.02] hover:shadow-xl hover:shadow-purple-500/20 border border-gray-600 hover:border-purple-500/50'
+            }
+          `}
         >
-          Previous
+          {/* Gradient overlay on hover */}
+          {currentPage !== 1 && (
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          )}
+
+          <div className="relative flex items-center justify-center space-x-1" style={{ padding: '0!important', margin: '0!important' }}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Previous</span>
+          </div>
         </button>
+
         <button
           onClick={handleNext}
           disabled={currentPage === totalPages}
-          className="flex-1 py-2 px-4 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors"
+          className={`
+            flex-1 group relative overflow-hidden rounded-lg py-2 px-3 font-semibold text-sm
+            transition-all duration-300 transform
+            ${currentPage === totalPages
+              ? 'bg-gray-800/50 text-gray-600 cursor-not-allowed border border-gray-700/50'
+              : 'glass-light text-white hover:scale-[1.02] hover:shadow-xl hover:shadow-pink-500/20 border border-gray-600 hover:border-pink-500/50'
+            }
+          `}
         >
-          Next
+          {/* Gradient overlay on hover */}
+          {currentPage !== totalPages && (
+            <div className="absolute inset-0 bg-gradient-to-l from-pink-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          )}
+
+          <div className="relative flex items-center justify-center space-x-1" style={{ padding: '0!important', margin: '0!important' }}>
+            <span>Next</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
         </button>
       </div>
     </div>

@@ -27,16 +27,21 @@ function App() {
       setScriptHistory(prev => ({ ...prev, [currentPage]: generatedScript }))
     }
 
+    // Clear the script first to prevent showing old script with new slide
+    setGeneratedScript('')
+
     setCurrentPage(newPage)
 
     // Check if we have cached content/script for this page
     if (scriptCache[newPage]) {
-      setGeneratedScript(scriptCache[newPage])
-      // Still trigger auto-generation for audio if cached
-      setAutoGenerateTrigger(prev => prev + 1)
+      // Use setTimeout to ensure the clear happens first
+      setTimeout(() => {
+        setGeneratedScript(scriptCache[newPage])
+        // Still trigger auto-generation for audio if cached
+        setAutoGenerateTrigger(prev => prev + 1)
+      }, 50)
     } else {
-      // Clear previous script and trigger auto-generation
-      setGeneratedScript('')
+      // Trigger auto-generation
       setAutoGenerateTrigger(prev => prev + 1)
     }
   }
@@ -58,35 +63,54 @@ function App() {
   }
 
   return (
-    <div className="w-full h-full bg-gray-900 text-white flex">
-      {/* Control Panel - Left Side */}
-      <ControlPanel
-        pdfFile={pdfFile}
-        setPdfFile={handleFileChange}
-        currentPage={currentPage}
-        setCurrentPage={handlePageChange}
-        totalPages={totalPages}
-        generatedScript={generatedScript}
-        setGeneratedScript={setGeneratedScript}
-        autoGenerateTrigger={autoGenerateTrigger}
-        presentationContext={presentationContext}
-        setPresentationContext={setPresentationContext}
-        scriptHistory={scriptHistory}
-        stopAudioTrigger={stopAudioTrigger}
-        contentCache={contentCache}
-        setContentCache={setContentCache}
-        scriptCache={scriptCache}
-        setScriptCache={setScriptCache}
-        audioCache={audioCache}
-        setAudioCache={setAudioCache}
-      />
+    <div
+      className="w-full h-full text-white flex relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e1b4b 100%)',
+        margin: 0,
+        padding: 0
+      }}
+    >
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }}></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-600/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-orange-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '2s' }}></div>
+      </div>
 
-      {/* Slide Viewer - Right Side */}
-      <SlideViewer
-        pdfFile={pdfFile}
-        currentPage={currentPage}
-        setTotalPages={setTotalPages}
-      />
+      {/* Control Panel - Left Side */}
+      <div className="relative z-10 shrink-0">
+        <ControlPanel
+          pdfFile={pdfFile}
+          setPdfFile={handleFileChange}
+          currentPage={currentPage}
+          setCurrentPage={handlePageChange}
+          totalPages={totalPages}
+          generatedScript={generatedScript}
+          setGeneratedScript={setGeneratedScript}
+          autoGenerateTrigger={autoGenerateTrigger}
+          presentationContext={presentationContext}
+          setPresentationContext={setPresentationContext}
+          scriptHistory={scriptHistory}
+          stopAudioTrigger={stopAudioTrigger}
+          contentCache={contentCache}
+          setContentCache={setContentCache}
+          scriptCache={scriptCache}
+          setScriptCache={setScriptCache}
+          audioCache={audioCache}
+          setAudioCache={setAudioCache}
+        />
+      </div>
+
+      {/* Slide Viewer + Script - Right Side */}
+      <div className="relative z-10 flex-1 min-w-0 overflow-hidden">
+        <SlideViewer
+          pdfFile={pdfFile}
+          currentPage={currentPage}
+          setTotalPages={setTotalPages}
+          generatedScript={generatedScript}
+        />
+      </div>
     </div>
   )
 }

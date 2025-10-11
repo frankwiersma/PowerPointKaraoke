@@ -344,10 +344,11 @@ Create a short (2-3 sentences) presenter's script that:
 
   // Auto-generate when content extraction completes (slideText updates)
   useEffect(() => {
-    if (autoGenerateTrigger > 0 && slideText.trim() && !slideText.includes('[Error') && !isExtracting) {
+    // Only auto-generate if we don't already have a script (prevents regenerating cached scripts)
+    if (autoGenerateTrigger > 0 && slideText.trim() && !slideText.includes('[Error') && !isExtracting && !isGenerating && !generatedScript) {
       generateVoiceover()
     }
-  }, [slideText, isExtracting])
+  }, [autoGenerateTrigger, isExtracting])
 
   // Prefetch next slide's script after current script is generated
   useEffect(() => {
@@ -484,36 +485,105 @@ Create a short (2-3 sentences) presenter's script that:
   }, [generatedScript, currentPage, totalPages])
 
   return (
-    <div className="flex-1 flex flex-col gap-3">
+    <div className="flex-1 flex flex-col gap-2" style={{ padding: '0!important', margin: '0!important' }}>
+      {/* Generate Button */}
       <button
         onClick={generateVoiceover}
-        disabled={!pdfFile || isGenerating}
-        className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed rounded-lg font-medium transition-all"
+        disabled={!pdfFile || isGenerating || isExtracting}
+        className={`
+          group relative overflow-hidden rounded-lg py-2.5 px-4 font-bold text-sm
+          transition-all duration-300 transform
+          ${!pdfFile || isGenerating || isExtracting
+            ? 'bg-gray-800/50 text-gray-600 cursor-not-allowed'
+            : 'bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white hover:scale-[1.02] shadow-lg hover:shadow-2xl hover:shadow-purple-500/40'
+          }
+        `}
+        style={{ backgroundSize: '200% 200%' }}
       >
-        {isGenerating ? 'Generating...' : '✨ Generate Voiceover'}
-      </button>
+        {/* Animated gradient background */}
+        {!isGenerating && !isExtracting && pdfFile && (
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ backgroundSize: '200% 200%', animation: 'gradient-shift 3s ease infinite' }}></div>
+        )}
 
-      {slideText && (
-        <div className="bg-gray-700 rounded-lg overflow-hidden">
-          <button
-            onClick={() => setShowExtractedText(!showExtractedText)}
-            className="w-full py-2 px-3 flex items-center justify-between text-xs text-gray-400 font-mono hover:bg-gray-600 transition-colors"
-          >
-            <span>Extracted Text</span>
-            <span>{showExtractedText ? '▼' : '▶'}</span>
-          </button>
-          {showExtractedText && (
-            <div className="p-3 max-h-48 overflow-y-auto border-t border-gray-600">
-              <p className="text-xs text-gray-300 whitespace-pre-wrap">{slideText}</p>
-            </div>
+        <div className="relative flex items-center justify-center space-x-2" style={{ padding: '0!important', margin: '0!important' }}>
+          {isGenerating ? (
+            <>
+              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Generating Script...</span>
+            </>
+          ) : isExtracting ? (
+            <>
+              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Extracting Content...</span>
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+              </svg>
+              <span>Generate Voiceover</span>
+            </>
           )}
         </div>
-      )}
+      </button>
 
-      {generatedScript && (
-        <div className="flex-1 bg-gray-700 rounded-lg p-4 overflow-y-auto">
-          <p className="text-xs text-gray-400 mb-2">Generated Script:</p>
-          <p className="text-sm text-gray-300 leading-relaxed">{generatedScript}</p>
+      {/* Extracted Text Section */}
+      {slideText && (
+        <div
+          className="glass-light rounded-lg overflow-hidden border border-gray-700/50 transition-all duration-300 hover:shadow-lg"
+          style={{
+            padding: '0!important',
+            margin: '0!important',
+            animation: 'fadeIn 0.3s ease-out'
+          }}
+        >
+          <button
+            onClick={() => setShowExtractedText(!showExtractedText)}
+            className="w-full py-2 px-3 flex items-center justify-between text-xs font-medium text-gray-300 hover:bg-gray-700/30 transition-all duration-200"
+            style={{ margin: '0!important' }}
+          >
+            <div className="flex items-center space-x-2" style={{ padding: '0!important', margin: '0!important' }}>
+              <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+              </svg>
+              <span>Extracted Content</span>
+            </div>
+            <svg
+              className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${showExtractedText ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showExtractedText && (
+            <div
+              className="px-3 py-2 max-h-32 overflow-y-auto border-t border-gray-700/50 custom-scrollbar bg-gray-800/30"
+              style={{ margin: '0!important', animation: 'slideInRight 0.2s ease-out' }}
+            >
+              {isExtracting ? (
+                // Skeleton loader
+                <div className="space-y-1" style={{ padding: '0!important', margin: '0!important' }}>
+                  <div className="skeleton skeleton-text"></div>
+                  <div className="skeleton skeleton-text"></div>
+                  <div className="skeleton skeleton-text"></div>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed font-mono">
+                  {slideText}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
