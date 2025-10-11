@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import FileUpload from './FileUpload'
-import Navigation from './Navigation'
 import ScriptDisplay from './ScriptDisplay'
 import AudioControls from './AudioControls'
+import ExportVideo from './ExportVideo'
+import ExportVideoSimple from './ExportVideoSimple'
 
 interface ControlPanelProps {
   pdfFile: File | null
@@ -15,6 +16,10 @@ interface ControlPanelProps {
   autoGenerateTrigger: number
   presentationContext: string
   setPresentationContext: (context: string) => void
+  presentationLanguage: 'dutch' | 'english' | null
+  setPresentationLanguage: (language: 'dutch' | 'english' | null) => void
+  languageAnalyzedSlides: number
+  setLanguageAnalyzedSlides: (count: number) => void
   scriptHistory: Record<number, string>
   stopAudioTrigger: number
   contentCache: Record<number, string>
@@ -23,6 +28,8 @@ interface ControlPanelProps {
   setScriptCache: (cache: Record<number, string>) => void
   audioCache: Record<number, string>
   setAudioCache: (cache: Record<number, string>) => void
+  isExporting: boolean
+  setIsExporting: (exporting: boolean) => void
 }
 
 export default function ControlPanel({
@@ -36,6 +43,10 @@ export default function ControlPanel({
   autoGenerateTrigger,
   presentationContext,
   setPresentationContext,
+  presentationLanguage,
+  setPresentationLanguage,
+  languageAnalyzedSlides,
+  setLanguageAnalyzedSlides,
   scriptHistory,
   stopAudioTrigger,
   contentCache,
@@ -44,6 +55,8 @@ export default function ControlPanel({
   setScriptCache,
   audioCache,
   setAudioCache,
+  isExporting,
+  setIsExporting,
 }: ControlPanelProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [autoPlayTrigger, setAutoPlayTrigger] = useState(0)
@@ -102,32 +115,36 @@ export default function ControlPanel({
               </h2>
             </div>
             <FileUpload pdfFile={pdfFile} setPdfFile={setPdfFile} />
-          </div>
 
-          {/* Navigation - only show when PDF is loaded */}
-          {pdfFile && totalPages > 0 && (
-            <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-1 h-4 bg-gradient-to-b from-pink-500 to-orange-500 rounded-full"></div>
-                <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                  Step 2: Navigate
-                </h2>
+            {/* Language Detection Indicator */}
+            {pdfFile && presentationLanguage && (
+              <div className="mt-2 px-3 py-2 rounded-lg bg-gradient-to-r from-purple-900/30 to-pink-900/30 border border-purple-500/30">
+                <div className="flex items-center space-x-2">
+                  <div className="flex-shrink-0">
+                    {presentationLanguage === 'dutch' ? '🇳🇱' : '🇬🇧'}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-gray-200">
+                      {presentationLanguage === 'dutch' ? 'Nederlands' : 'English'}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {presentationLanguage === 'dutch'
+                        ? 'Gedetecteerd - alle audio in Nederlands'
+                        : 'Detected - all audio in English'}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <Navigation
-                currentPage={currentPage}
-                setCurrentPage={setCurrentPage}
-                totalPages={totalPages}
-              />
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Script Generation & Audio Section */}
           {pdfFile && totalPages > 0 && (
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <div className="w-1 h-4 bg-gradient-to-b from-orange-500 to-purple-500 rounded-full"></div>
+                <div className="w-1 h-4 bg-gradient-to-b from-pink-500 to-purple-500 rounded-full"></div>
                 <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                  Step 3: Generate & Play
+                  Step 2: Generate & Play
                 </h2>
               </div>
 
@@ -144,6 +161,10 @@ export default function ControlPanel({
                   setAutoPlayTrigger={setAutoPlayTrigger}
                   presentationContext={presentationContext}
                   setPresentationContext={setPresentationContext}
+                  presentationLanguage={presentationLanguage}
+                  setPresentationLanguage={setPresentationLanguage}
+                  languageAnalyzedSlides={languageAnalyzedSlides}
+                  setLanguageAnalyzedSlides={setLanguageAnalyzedSlides}
                   scriptHistory={scriptHistory}
                   contentCache={contentCache}
                   setContentCache={setContentCache}
@@ -151,6 +172,7 @@ export default function ControlPanel({
                   setScriptCache={setScriptCache}
                   audioCache={audioCache}
                   setAudioCache={setAudioCache}
+                  isExporting={isExporting}
                 />
 
                 {/* Audio Controls */}
@@ -162,8 +184,65 @@ export default function ControlPanel({
                     audioCache={audioCache}
                     setAudioCache={setAudioCache}
                     currentPage={currentPage}
+                    presentationLanguage={presentationLanguage}
+                    isExporting={isExporting}
                   />
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Export Video Section */}
+          {pdfFile && totalPages > 0 && (
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="w-1 h-4 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></div>
+                <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                  Step 3: Export
+                </h2>
+              </div>
+
+              <div className="space-y-2">
+                <ExportVideo
+                  pdfFile={pdfFile}
+                  totalPages={totalPages}
+                  scriptCache={scriptCache}
+                  audioCache={audioCache}
+                  setScriptCache={setScriptCache}
+                  setAudioCache={setAudioCache}
+                  contentCache={contentCache}
+                  setContentCache={setContentCache}
+                  presentationContext={presentationContext}
+                  setPresentationContext={setPresentationContext}
+                  presentationLanguage={presentationLanguage}
+                  setPresentationLanguage={setPresentationLanguage}
+                  scriptHistory={scriptHistory}
+                  isExporting={isExporting}
+                  setIsExporting={setIsExporting}
+                />
+
+                <details className="text-xs text-gray-400">
+                  <summary className="cursor-pointer hover:text-gray-300">Alternative: Export as ZIP</summary>
+                  <div className="mt-2">
+                    <ExportVideoSimple
+                      pdfFile={pdfFile}
+                      totalPages={totalPages}
+                      scriptCache={scriptCache}
+                      audioCache={audioCache}
+                      setScriptCache={setScriptCache}
+                      setAudioCache={setAudioCache}
+                      contentCache={contentCache}
+                      setContentCache={setContentCache}
+                      presentationContext={presentationContext}
+                      setPresentationContext={setPresentationContext}
+                      presentationLanguage={presentationLanguage}
+                      scriptHistory={scriptHistory}
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Get slides + audio as ZIP to combine in video editing software.
+                    </p>
+                  </div>
+                </details>
               </div>
             </div>
           )}

@@ -9,23 +9,28 @@ interface SlideViewerProps {
   currentPage: number
   setTotalPages: (total: number) => void
   generatedScript: string
+  setCurrentPage: (page: number) => void
+  totalPages: number
 }
 
-export default function SlideViewer({ pdfFile, currentPage, setTotalPages, generatedScript }: SlideViewerProps) {
+export default function SlideViewer({ pdfFile, currentPage, setTotalPages, generatedScript, setCurrentPage, totalPages }: SlideViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pdfDocRef = useRef<any>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [pdfLoaded, setPdfLoaded] = useState(false)
 
   // Load PDF when file changes
   useEffect(() => {
     if (!pdfFile) {
       setTotalPages(0)
+      setPdfLoaded(false)
       return
     }
 
     const loadPdf = async () => {
       setIsLoading(true)
+      setPdfLoaded(false)
       const fileReader = new FileReader()
 
       fileReader.onload = async (e) => {
@@ -35,9 +40,12 @@ export default function SlideViewer({ pdfFile, currentPage, setTotalPages, gener
           const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise
           pdfDocRef.current = pdf
           setTotalPages(pdf.numPages)
+          setPdfLoaded(true)
+          console.log('[SlideViewer] PDF loaded successfully with', pdf.numPages, 'pages')
         } catch (error) {
           console.error('Error loading PDF:', error)
           alert('Failed to load PDF file')
+          setPdfLoaded(false)
         } finally {
           setIsLoading(false)
         }
@@ -51,22 +59,37 @@ export default function SlideViewer({ pdfFile, currentPage, setTotalPages, gener
 
   // Render current page with transition
   useEffect(() => {
-    if (!pdfDocRef.current || !canvasRef.current) return
+    // Early return if PDF not loaded yet
+    if (!pdfLoaded || !pdfDocRef.current || !canvasRef.current) {
+      console.log('[SlideViewer] Skipping render - pdfLoaded:', pdfLoaded, 'pdfDocRef:', !!pdfDocRef.current, 'canvasRef:', !!canvasRef.current)
+      return
+    }
 
     const renderPage = async () => {
+      console.log('[SlideViewer] Rendering page', currentPage)
       setIsTransitioning(true)
 
       try {
         const page = await pdfDocRef.current.getPage(currentPage)
         const canvas = canvasRef.current
-        const context = canvas.getContext('2d')
+        if (!canvas) {
+          console.error('[SlideViewer] Canvas ref lost during render')
+          return
+        }
 
-        if (!context) return
+        const context = canvas.getContext('2d')
+        if (!context) {
+          console.error('[SlideViewer] Failed to get canvas context')
+          return
+        }
 
         // Calculate scale to fit the canvas
         const viewport = page.getViewport({ scale: 1 })
         const canvasContainer = canvas.parentElement
-        if (!canvasContainer) return
+        if (!canvasContainer) {
+          console.error('[SlideViewer] Canvas parent not found')
+          return
+        }
 
         const scaleX = canvasContainer.clientWidth / viewport.width
         const scaleY = canvasContainer.clientHeight / viewport.height
@@ -83,24 +106,143 @@ export default function SlideViewer({ pdfFile, currentPage, setTotalPages, gener
         }
 
         await page.render(renderContext).promise
+        console.log('[SlideViewer] ✓ Page', currentPage, 'rendered successfully')
 
         // Delay to show transition
         setTimeout(() => setIsTransitioning(false), 300)
       } catch (error) {
-        console.error('Error rendering page:', error)
+        console.error('[SlideViewer] Error rendering page:', error)
         setIsTransitioning(false)
       }
     }
 
     renderPage()
-  }, [currentPage])
+  }, [currentPage, pdfLoaded])
 
   return (
-    <div className="w-full h-full flex flex-col" style={{ padding: '1rem', margin: 0, gap: '1rem' }}>
+    <div className="w-full h-full flex flex-col" style={{ padding: '0.5rem', margin: 0, gap: '0.5rem' }}>
       {pdfFile ? (
         <>
           {/* PDF Slide Container */}
           <div className="relative flex-1" style={{ minHeight: 0 }}>
+            {/* Navigation Overlay - Bottom */}
+            {totalPages > 0 && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                <div
+                  className="glass rounded-lg shadow-2xl border border-purple-500/30"
+                  style={{
+                    padding: '0.75rem 1rem',
+                    background: 'rgba(30, 41, 59, 0.85)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    {/* First Button */}
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className={`
+                        group relative overflow-hidden rounded-lg p-2 font-semibold text-sm
+                        transition-all duration-300 transform
+                        ${currentPage === 1
+                          ? 'bg-gray-800/50 text-gray-600 cursor-not-allowed'
+                          : 'glass-light text-white hover:scale-110 hover:shadow-lg hover:shadow-purple-500/30'
+                        }
+                      `}
+                      title="First slide"
+                    >
+                      {currentPage !== 1 && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      )}
+                      <svg className="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`
+                        group relative overflow-hidden rounded-lg py-2 px-4 font-semibold text-sm
+                        transition-all duration-300 transform
+                        ${currentPage === 1
+                          ? 'bg-gray-800/50 text-gray-600 cursor-not-allowed'
+                          : 'glass-light text-white hover:scale-105 hover:shadow-xl hover:shadow-purple-500/30'
+                        }
+                      `}
+                    >
+                      {currentPage !== 1 && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      )}
+                      <div className="relative flex items-center space-x-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        <span>Previous</span>
+                      </div>
+                    </button>
+
+                    {/* Page Counter */}
+                    <div className="px-4 py-2 rounded-lg glass-light">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xl font-bold gradient-text">{currentPage}</span>
+                        <span className="text-gray-400">/</span>
+                        <span className="text-lg text-gray-300">{totalPages}</span>
+                      </div>
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`
+                        group relative overflow-hidden rounded-lg py-2 px-4 font-semibold text-sm
+                        transition-all duration-300 transform
+                        ${currentPage === totalPages
+                          ? 'bg-gray-800/50 text-gray-600 cursor-not-allowed'
+                          : 'glass-light text-white hover:scale-105 hover:shadow-xl hover:shadow-pink-500/30'
+                        }
+                      `}
+                    >
+                      {currentPage !== totalPages && (
+                        <div className="absolute inset-0 bg-gradient-to-l from-pink-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      )}
+                      <div className="relative flex items-center space-x-2">
+                        <span>Next</span>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {/* Last Button */}
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className={`
+                        group relative overflow-hidden rounded-lg p-2 font-semibold text-sm
+                        transition-all duration-300 transform
+                        ${currentPage === totalPages
+                          ? 'bg-gray-800/50 text-gray-600 cursor-not-allowed'
+                          : 'glass-light text-white hover:scale-110 hover:shadow-lg hover:shadow-pink-500/30'
+                        }
+                      `}
+                      title="Last slide"
+                    >
+                      {currentPage !== totalPages && (
+                        <div className="absolute inset-0 bg-gradient-to-l from-pink-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      )}
+                      <svg className="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Canvas Container with Glass Effect */}
             <div
               className={`
@@ -109,7 +251,7 @@ export default function SlideViewer({ pdfFile, currentPage, setTotalPages, gener
                 ${isTransitioning ? 'opacity-50 scale-[0.98]' : 'opacity-100 scale-100'}
               `}
               style={{
-                padding: '1.5rem',
+                padding: '0.75rem',
                 margin: 0,
                 background: 'rgba(255, 255, 255, 0.95)',
                 backdropFilter: 'blur(12px)',
@@ -128,7 +270,7 @@ export default function SlideViewer({ pdfFile, currentPage, setTotalPages, gener
               className="relative w-full h-full flex items-center justify-center rounded-xl"
               style={{
                 background: '#ffffff',
-                padding: '0.5rem',
+                padding: '0.25rem',
                 margin: 0
               }}
             >

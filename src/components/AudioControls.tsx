@@ -7,9 +7,11 @@ interface AudioControlsProps {
   audioCache: Record<number, string>
   setAudioCache: (cache: Record<number, string>) => void
   currentPage: number
+  isExporting?: boolean
+  presentationLanguage: 'dutch' | 'english' | null
 }
 
-export default function AudioControls({ script, autoPlayTrigger, stopAudioTrigger, audioCache, setAudioCache, currentPage }: AudioControlsProps) {
+export default function AudioControls({ script, autoPlayTrigger, stopAudioTrigger, audioCache, setAudioCache, currentPage, isExporting = false, presentationLanguage }: AudioControlsProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -183,8 +185,9 @@ export default function AudioControls({ script, autoPlayTrigger, stopAudioTrigge
   }
 
   const generateAudio = async (text: string, pageNumber: number): Promise<string | null> => {
-    // Detect language and choose appropriate TTS service
-    const isDutch = isDutchText(text)
+    // Use presentation language if detected, otherwise fallback to per-script detection
+    console.log(`[AudioControls] Using presentation language: ${presentationLanguage || 'not yet detected, using per-script detection'}`)
+    const isDutch = presentationLanguage === 'dutch' || (presentationLanguage === null && isDutchText(text))
     console.log(`Detected language: ${isDutch ? 'Dutch (using ElevenLabs)' : 'English (using Deepgram)'}`)
 
     if (isDutch) {
@@ -325,19 +328,24 @@ export default function AudioControls({ script, autoPlayTrigger, stopAudioTrigge
     }
   }
 
-  // Auto-play when autoPlayTrigger changes
+  // Auto-play when autoPlayTrigger changes (skip during export)
   useEffect(() => {
+    if (isExporting) {
+      console.log('[AudioControls] Skipping auto-play - export in progress')
+      return
+    }
+
     if (autoPlayTrigger > 0 && script && !isGeneratingAudio && !isPlaying) {
       console.log('Auto-play triggered for page:', currentPage)
       // Small delay to ensure script display has updated
       const timeoutId = setTimeout(() => {
-        if (!isGeneratingAudio && !isPlaying) {
+        if (!isGeneratingAudio && !isPlaying && !isExporting) {
           generateAndPlayAudio()
         }
       }, 300)
       return () => clearTimeout(timeoutId)
     }
-  }, [autoPlayTrigger])
+  }, [autoPlayTrigger, isExporting])
 
   // Stop audio when stopAudioTrigger changes
   useEffect(() => {

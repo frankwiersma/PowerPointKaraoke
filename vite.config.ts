@@ -11,8 +11,28 @@ export default defineConfig({
         {
           src: 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
           dest: ''
+        },
+        {
+          src: 'node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.js',
+          dest: ''
+        },
+        {
+          src: 'node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.wasm',
+          dest: ''
         }
       ]
     })
   ],
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp'
+    }
+  },
+  preview: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp'
+    }
+  }
 })

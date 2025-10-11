@@ -5,6 +5,10 @@ interface NavigationProps {
 }
 
 export default function Navigation({ currentPage, setCurrentPage, totalPages }: NavigationProps) {
+  const handleFirst = () => {
+    setCurrentPage(1)
+  }
+
   const handlePrevious = () => {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1)
@@ -15,6 +19,10 @@ export default function Navigation({ currentPage, setCurrentPage, totalPages }: 
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1)
     }
+  }
+
+  const handleLast = () => {
+    setCurrentPage(totalPages)
   }
 
   const progress = (currentPage / totalPages) * 100
@@ -66,7 +74,32 @@ export default function Navigation({ currentPage, setCurrentPage, totalPages }: 
       </div>
 
       {/* Navigation Buttons */}
-      <div className="flex gap-2" style={{ padding: '0!important', margin: '0!important' }}>
+      <div className="flex gap-1.5" style={{ padding: '0!important', margin: '0!important' }}>
+        {/* First Button */}
+        <button
+          onClick={handleFirst}
+          disabled={currentPage === 1}
+          className={`
+            group relative overflow-hidden rounded-lg py-2 px-2 font-semibold text-sm
+            transition-all duration-300 transform
+            ${currentPage === 1
+              ? 'bg-gray-800/50 text-gray-600 cursor-not-allowed border border-gray-700/50'
+              : 'glass-light text-white hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/20 border border-gray-600 hover:border-purple-500/50'
+            }
+          `}
+          title="First slide"
+        >
+          {currentPage !== 1 && (
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          )}
+          <div className="relative" style={{ padding: '0!important', margin: '0!important' }}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            </svg>
+          </div>
+        </button>
+
+        {/* Previous Button */}
         <button
           onClick={handlePrevious}
           disabled={currentPage === 1}
@@ -79,11 +112,9 @@ export default function Navigation({ currentPage, setCurrentPage, totalPages }: 
             }
           `}
         >
-          {/* Gradient overlay on hover */}
           {currentPage !== 1 && (
             <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           )}
-
           <div className="relative flex items-center justify-center space-x-1" style={{ padding: '0!important', margin: '0!important' }}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -92,6 +123,7 @@ export default function Navigation({ currentPage, setCurrentPage, totalPages }: 
           </div>
         </button>
 
+        {/* Next Button */}
         <button
           onClick={handleNext}
           disabled={currentPage === totalPages}
@@ -104,15 +136,37 @@ export default function Navigation({ currentPage, setCurrentPage, totalPages }: 
             }
           `}
         >
-          {/* Gradient overlay on hover */}
           {currentPage !== totalPages && (
             <div className="absolute inset-0 bg-gradient-to-l from-pink-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           )}
-
           <div className="relative flex items-center justify-center space-x-1" style={{ padding: '0!important', margin: '0!important' }}>
             <span>Next</span>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </button>
+
+        {/* Last Button */}
+        <button
+          onClick={handleLast}
+          disabled={currentPage === totalPages}
+          className={`
+            group relative overflow-hidden rounded-lg py-2 px-2 font-semibold text-sm
+            transition-all duration-300 transform
+            ${currentPage === totalPages
+              ? 'bg-gray-800/50 text-gray-600 cursor-not-allowed border border-gray-700/50'
+              : 'glass-light text-white hover:scale-[1.02] hover:shadow-lg hover:shadow-pink-500/20 border border-gray-600 hover:border-pink-500/50'
+            }
+          `}
+          title="Last slide"
+        >
+          {currentPage !== totalPages && (
+            <div className="absolute inset-0 bg-gradient-to-l from-pink-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          )}
+          <div className="relative" style={{ padding: '0!important', margin: '0!important' }}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
             </svg>
           </div>
         </button>

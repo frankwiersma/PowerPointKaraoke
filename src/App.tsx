@@ -12,6 +12,9 @@ function App() {
   const [presentationContext, setPresentationContext] = useState<string>('')
   const [scriptHistory, setScriptHistory] = useState<Record<number, string>>({})
   const [stopAudioTrigger, setStopAudioTrigger] = useState(0)
+  const [isExporting, setIsExporting] = useState(false)
+  const [presentationLanguage, setPresentationLanguage] = useState<'dutch' | 'english' | null>(null)
+  const [languageAnalyzedSlides, setLanguageAnalyzedSlides] = useState<number>(0)
 
   // Prefetch cache for next slide
   const [contentCache, setContentCache] = useState<Record<number, string>>({})
@@ -47,15 +50,31 @@ function App() {
   }
 
   const handleFileChange = (file: File | null) => {
+    // Stop any playing audio first
+    setStopAudioTrigger(prev => prev + 1)
+
+    // Clean up all cached audio blob URLs to prevent memory leaks
+    setAudioCache(prevCache => {
+      Object.values(prevCache).forEach(url => {
+        if (url && url.startsWith('blob:')) {
+          URL.revokeObjectURL(url)
+        }
+      })
+      return {}
+    })
+
+    // Reset all state when a new file is loaded
     setPdfFile(file)
-    // Reset everything when a new file is loaded
     setCurrentPage(1)
+    setTotalPages(0)
     setGeneratedScript('')
     setPresentationContext('')
+    setPresentationLanguage(null)
+    setLanguageAnalyzedSlides(0)
     setScriptHistory({})
     setContentCache({})
     setScriptCache({})
-    setAudioCache({})
+
     // Trigger auto-generation for first slide
     if (file) {
       setAutoGenerateTrigger(prev => prev + 1)
@@ -91,6 +110,10 @@ function App() {
           autoGenerateTrigger={autoGenerateTrigger}
           presentationContext={presentationContext}
           setPresentationContext={setPresentationContext}
+          presentationLanguage={presentationLanguage}
+          setPresentationLanguage={setPresentationLanguage}
+          languageAnalyzedSlides={languageAnalyzedSlides}
+          setLanguageAnalyzedSlides={setLanguageAnalyzedSlides}
           scriptHistory={scriptHistory}
           stopAudioTrigger={stopAudioTrigger}
           contentCache={contentCache}
@@ -99,6 +122,8 @@ function App() {
           setScriptCache={setScriptCache}
           audioCache={audioCache}
           setAudioCache={setAudioCache}
+          isExporting={isExporting}
+          setIsExporting={setIsExporting}
         />
       </div>
 
@@ -109,6 +134,8 @@ function App() {
           currentPage={currentPage}
           setTotalPages={setTotalPages}
           generatedScript={generatedScript}
+          setCurrentPage={handlePageChange}
+          totalPages={totalPages}
         />
       </div>
     </div>

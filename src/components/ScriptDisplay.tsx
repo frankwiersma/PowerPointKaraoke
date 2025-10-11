@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { detectPresentationLanguage, getSlidesToAnalyze } from '../utils/languageDetection'
 
 interface ScriptDisplayProps {
   pdfFile: File | null
@@ -21,6 +22,11 @@ interface ScriptDisplayProps {
   setScriptCache: (cache: Record<number, string>) => void
   audioCache: Record<number, string>
   setAudioCache: (cache: Record<number, string>) => void
+  isExporting: boolean
+  presentationLanguage: 'dutch' | 'english' | null
+  setPresentationLanguage: (language: 'dutch' | 'english' | null) => void
+  languageAnalyzedSlides: number
+  setLanguageAnalyzedSlides: (count: number) => void
 }
 
 export default function ScriptDisplay({
@@ -42,10 +48,26 @@ export default function ScriptDisplay({
   setScriptCache,
   audioCache,
   setAudioCache,
+  isExporting,
+  presentationLanguage,
+  setPresentationLanguage,
+  languageAnalyzedSlides,
+  setLanguageAnalyzedSlides,
 }: ScriptDisplayProps) {
   const [slideText, setSlideText] = useState('')
   const [isExtracting, setIsExtracting] = useState(false)
   const [showExtractedText, setShowExtractedText] = useState(false)
+  const prefetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const scriptsForAnalysis = useRef<string[]>([])
+
+  // Cancel prefetch timeout when export starts
+  useEffect(() => {
+    if (isExporting && prefetchTimeoutRef.current) {
+      console.log('[Prefetch] Cancelling pending prefetch timeout due to export')
+      clearTimeout(prefetchTimeoutRef.current)
+      prefetchTimeoutRef.current = null
+    }
+  }, [isExporting])
 
   // Helper function to extract content from any page
   const extractContentForPage = async (pageNumber: number): Promise<string> => {
@@ -178,15 +200,26 @@ export default function ScriptDisplay({
 
         setIsExtracting(false)
 
-        // Prefetch next slide content in the background
-        if (currentPage < totalPages) {
-          const nextPage = currentPage + 1
-          if (!contentCache[nextPage]) {
-            extractContentForPage(nextPage).then(nextContent => {
-              setContentCache(prev => ({ ...prev, [nextPage]: nextContent }))
-            })
-          }
+        // Prefetch next slide content in the background (skip during export)
+        // Clear any pending prefetch timeout
+        if (prefetchTimeoutRef.current) {
+          clearTimeout(prefetchTimeoutRef.current)
         }
+
+        // Use setTimeout to check isExporting status after the current operation
+        prefetchTimeoutRef.current = setTimeout(() => {
+          if (!isExporting && currentPage < totalPages) {
+            const nextPage = currentPage + 1
+            if (!contentCache[nextPage]) {
+              console.log(`[Prefetch] Prefetching content for slide ${nextPage}`)
+              extractContentForPage(nextPage).then(nextContent => {
+                if (!isExporting) {
+                  setContentCache(prev => ({ ...prev, [nextPage]: nextContent }))
+                }
+              })
+            }
+          }
+        }, 100)
       } catch (error: any) {
         console.error('Error extracting content:', error)
         setSlideText(`[Error: ${error?.message || 'Unknown error'}]`)
@@ -328,6 +361,21 @@ Create a short (2-3 sentences) presenter's script that:
       }
 
       setGeneratedScript(script)
+
+      // Language detection: collect scripts from first slides to determine language
+      if (presentationLanguage === null && currentPage <= getSlidesToAnalyze(totalPages)) {
+        scriptsForAnalysis.current.push(script)
+        console.log(`[Language] Collected script ${scriptsForAnalysis.current.length}/${getSlidesToAnalyze(totalPages)} for language analysis`)
+
+        // Once we have enough scripts, detect the language
+        if (scriptsForAnalysis.current.length >= getSlidesToAnalyze(totalPages)) {
+          const detectedLanguage = detectPresentationLanguage(scriptsForAnalysis.current)
+          setPresentationLanguage(detectedLanguage)
+          setLanguageAnalyzedSlides(scriptsForAnalysis.current.length)
+          console.log(`[Language] ✓ Presentation language set to: ${detectedLanguage.toUpperCase()}`)
+        }
+      }
+
       // Trigger auto-play after script generation
       setAutoPlayTrigger(prev => prev + 1)
     } catch (error: any) {
@@ -350,19 +398,39 @@ Create a short (2-3 sentences) presenter's script that:
     }
   }, [autoGenerateTrigger, isExtracting])
 
-  // Prefetch next slide's script after current script is generated
+  // Prefetch next 2 slides' scripts and audio after current script is generated
   useEffect(() => {
+    // Skip prefetching if export is running
+    if (isExporting) {
+      console.log('[Prefetch] Skipping prefetch - export in progress')
+      return
+    }
+
     if (!generatedScript || !pdfFile || currentPage >= totalPages) return
 
-    const nextPage = currentPage + 1
-    if (scriptCache[nextPage]) return // Already cached
+    const prefetchUpcomingSlides = async () => {
+      // Prefetch up to 2 slides ahead
+      const slidesToPrefetch = [currentPage + 1, currentPage + 2].filter(page => page <= totalPages)
 
-    const prefetchNextScript = async () => {
+      for (const nextPage of slidesToPrefetch) {
+        if (scriptCache[nextPage]) {
+          console.log(`Slide ${nextPage} script already cached, skipping`)
+          continue // Already cached
+        }
+
+        const prefetchNextScript = async () => {
       try {
         // Wait for next page content to be available
         let nextContent = contentCache[nextPage]
         if (!nextContent) {
           nextContent = await extractContentForPage(nextPage)
+
+          // Check if export started while we were extracting - don't cache if so
+          if (isExporting) {
+            console.log(`[Prefetch] ⚠️ Export started during content extraction - discarding prefetched content for slide ${nextPage}`)
+            return
+          }
+
           setContentCache(prev => ({ ...prev, [nextPage]: nextContent }))
         }
 
@@ -444,6 +512,12 @@ Create a short (2-3 sentences) presenter's script that:
         const data = await response.json()
         const nextScript = data.choices[0]?.message?.content || ''
 
+        // Check if export started while we were fetching - don't cache if so
+        if (isExporting) {
+          console.log(`[Prefetch] ⚠️ Export started during fetch - discarding prefetched script for slide ${nextPage}`)
+          return
+        }
+
         // Cache the prefetched script
         setScriptCache(prev => ({ ...prev, [nextPage]: nextScript }))
 
@@ -451,23 +525,24 @@ Create a short (2-3 sentences) presenter's script that:
 
         // Now prefetch audio for the next slide
         if (!audioCache[nextPage] && nextScript) {
-          // Detect if next script is Dutch
-          const isDutch = (() => {
-            const dutchWords = [
-              'de', 'het', 'een', 'van', 'in', 'op', 'voor', 'met', 'aan', 'dat', 'dit',
-              'zijn', 'worden', 'hebben', 'kunnen', 'moeten', 'willen', 'gaan', 'maken',
-              'deze', 'zoals', 'maar', 'ook', 'niet', 'naar', 'door', 'over', 'om',
-              'bij', 'uit', 'naar', 'meer', 'andere', 'alle', 'veel', 'nog', 'wel',
-              'bijvoorbeeld', 'namelijk', 'waarom', 'hoe', 'wanneer', 'waar', 'wie'
-            ]
-            const lowerText = nextScript.toLowerCase()
-            const words = lowerText.split(/\s+/)
-            const dutchWordCount = words.filter(word =>
-              dutchWords.includes(word.replace(/[.,!?;:]$/, ''))
-            ).length
-            const threshold = words.length * 0.2
-            return dutchWordCount >= threshold && dutchWordCount >= 3
-          })()
+          // Use presentation language if available, otherwise detect from script
+          const isDutch = presentationLanguage === 'dutch' ||
+            (presentationLanguage === null && (() => {
+              const dutchWords = [
+                'de', 'het', 'een', 'van', 'in', 'op', 'voor', 'met', 'aan', 'dat', 'dit',
+                'zijn', 'worden', 'hebben', 'kunnen', 'moeten', 'willen', 'gaan', 'maken',
+                'deze', 'zoals', 'maar', 'ook', 'niet', 'naar', 'door', 'over', 'om',
+                'bij', 'uit', 'naar', 'meer', 'andere', 'alle', 'veel', 'nog', 'wel',
+                'bijvoorbeeld', 'namelijk', 'waarom', 'hoe', 'wanneer', 'waar', 'wie'
+              ]
+              const lowerText = nextScript.toLowerCase()
+              const words = lowerText.split(/\s+/)
+              const dutchWordCount = words.filter(word =>
+                dutchWords.includes(word.replace(/[.,!?;:]$/, ''))
+              ).length
+              const threshold = words.length * 0.2
+              return dutchWordCount >= threshold && dutchWordCount >= 3
+            })())
 
           console.log(`Prefetching audio for slide ${nextPage} - Language: ${isDutch ? 'Dutch (ElevenLabs)' : 'English (Deepgram)'}`)
 
@@ -510,6 +585,14 @@ Create a short (2-3 sentences) presenter's script that:
 
             if (audioResponse && audioResponse.ok) {
               const audioBlob = await audioResponse.blob()
+
+              // Check if export started while we were fetching - don't cache if so
+              if (isExporting) {
+                console.log(`[Prefetch] ⚠️ Export started during audio fetch - discarding prefetched audio for slide ${nextPage}`)
+                URL.revokeObjectURL(URL.createObjectURL(audioBlob)) // Clean up
+                return
+              }
+
               const audioUrl = URL.createObjectURL(audioBlob)
               setAudioCache(prev => ({ ...prev, [nextPage]: audioUrl }))
               console.log(`Prefetched ${isDutch ? 'ElevenLabs' : 'Deepgram'} audio for slide ${nextPage}`)
@@ -519,12 +602,16 @@ Create a short (2-3 sentences) presenter's script that:
           }
         }
       } catch (error) {
-        console.error('Error prefetching next script:', error)
+        console.error(`Error prefetching script for slide ${nextPage}:`, error)
       }
     }
 
-    prefetchNextScript()
-  }, [generatedScript, currentPage, totalPages])
+        await prefetchNextScript()
+      }
+    }
+
+    prefetchUpcomingSlides()
+  }, [generatedScript, currentPage, totalPages, isExporting])
 
   return (
     <div className="flex-1 flex flex-col gap-2" style={{ padding: '0!important', margin: '0!important' }}>
