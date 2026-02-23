@@ -1,3 +1,4 @@
+import { getKey } from '../utils/apiKeys'
 import { useState, useRef, useEffect } from 'react'
 
 interface AudioControlsProps {
@@ -65,8 +66,8 @@ export default function AudioControls({ script, autoPlayTrigger, stopAudioTrigge
   }
 
   const generateAudioWithElevenLabs = async (text: string, pageNumber: number): Promise<string | null> => {
-    const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY
-    const voiceId = import.meta.env.VITE_ELEVENLABS_DUTCH_VOICE_ID
+    const apiKey = getKey('ELEVENLABS_API_KEY')
+    const voiceId = getKey('ELEVENLABS_DUTCH_VOICE_ID')
 
     if (!apiKey || !voiceId) {
       console.warn('ElevenLabs API key or voice ID not configured')
@@ -127,7 +128,7 @@ export default function AudioControls({ script, autoPlayTrigger, stopAudioTrigge
   }
 
   const generateAudioWithDeepgram = async (text: string, pageNumber: number): Promise<string | null> => {
-    const apiKey = import.meta.env.VITE_DEEPGRAM_API_KEY
+    const apiKey = getKey('DEEPGRAM_API_KEY')
     if (!apiKey || apiKey === 'your_deepgram_api_key_here') {
       return null
     }
@@ -198,8 +199,8 @@ export default function AudioControls({ script, autoPlayTrigger, stopAudioTrigge
   }
 
   const generateAndPlayAudio = async () => {
-    const deepgramKey = import.meta.env.VITE_DEEPGRAM_API_KEY
-    const elevenlabsKey = import.meta.env.VITE_ELEVENLABS_API_KEY
+    const deepgramKey = getKey('DEEPGRAM_API_KEY')
+    const elevenlabsKey = getKey('ELEVENLABS_API_KEY')
 
     if ((!deepgramKey || deepgramKey === 'your_deepgram_api_key_here') && !elevenlabsKey) {
       console.warn('No TTS API key configured (Deepgram or ElevenLabs)')

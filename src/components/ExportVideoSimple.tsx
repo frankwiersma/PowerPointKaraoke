@@ -1,3 +1,4 @@
+import { getKey } from '../utils/apiKeys'
 import { useState, useRef } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import JSZip from 'jszip'
@@ -77,10 +78,10 @@ export default function ExportVideoSimple({
           const imageDataUrl = canvas.toDataURL('image/png')
 
           // Use Azure OpenAI Vision to extract content
-          const endpoint = import.meta.env.VITE_OPENAI_ENDPOINT
-          const apiKey = import.meta.env.VITE_OPENAI_KEY
-          const model = import.meta.env.VITE_OPENAI_MODEL
-          const apiVersion = import.meta.env.VITE_API_VERSION
+          const endpoint = getKey('OPENAI_ENDPOINT')
+          const apiKey = getKey('OPENAI_KEY')
+          const model = getKey('OPENAI_MODEL')
+          const apiVersion = getKey('API_VERSION')
 
           if (!endpoint || !apiKey) {
             resolve('[Azure OpenAI not configured]')
@@ -146,10 +147,10 @@ export default function ExportVideoSimple({
     total: number
   ): Promise<string | null> => {
     try {
-      const endpoint = import.meta.env.VITE_OPENAI_ENDPOINT
-      const apiKey = import.meta.env.VITE_OPENAI_KEY
-      const model = import.meta.env.VITE_OPENAI_MODEL
-      const apiVersion = import.meta.env.VITE_API_VERSION
+      const endpoint = getKey('OPENAI_ENDPOINT')
+      const apiKey = getKey('OPENAI_KEY')
+      const model = getKey('OPENAI_MODEL')
+      const apiVersion = getKey('API_VERSION')
 
       if (!endpoint || !apiKey) return null
 
@@ -241,8 +242,8 @@ Create a short (2-3 sentences) presenter's script that:
 
       if (isDutch) {
         // Use ElevenLabs for Dutch
-        const elevenlabsKey = import.meta.env.VITE_ELEVENLABS_API_KEY
-        const voiceId = import.meta.env.VITE_ELEVENLABS_DUTCH_VOICE_ID
+        const elevenlabsKey = getKey('ELEVENLABS_API_KEY')
+        const voiceId = getKey('ELEVENLABS_DUTCH_VOICE_ID')
 
         if (!elevenlabsKey || !voiceId) return null
 
@@ -262,7 +263,7 @@ Create a short (2-3 sentences) presenter's script that:
         return await response.blob()
       } else {
         // Use Deepgram for English
-        const deepgramKey = import.meta.env.VITE_DEEPGRAM_API_KEY
+        const deepgramKey = getKey('DEEPGRAM_API_KEY')
 
         if (!deepgramKey || deepgramKey === 'your_deepgram_api_key_here') return null
 

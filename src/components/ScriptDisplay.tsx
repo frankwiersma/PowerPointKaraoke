@@ -1,3 +1,4 @@
+import { getKey } from '../utils/apiKeys'
 import { useState, useEffect, useRef } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import { GoogleGenerativeAI } from '@google/generative-ai'
@@ -111,10 +112,10 @@ export default function ScriptDisplay({
           const imageDataUrl = canvas.toDataURL('image/png')
 
           // Use Azure OpenAI GPT-4o Vision to extract content from images
-          const endpoint = import.meta.env.VITE_OPENAI_ENDPOINT
-          const apiKey = import.meta.env.VITE_OPENAI_KEY
-          const model = import.meta.env.VITE_OPENAI_MODEL
-          const apiVersion = import.meta.env.VITE_API_VERSION
+          const endpoint = getKey('OPENAI_ENDPOINT')
+          const apiKey = getKey('OPENAI_KEY')
+          const model = getKey('OPENAI_MODEL')
+          const apiVersion = getKey('API_VERSION')
 
           if (!endpoint || !apiKey) {
             resolve(pdfText || '[Azure OpenAI not configured]')
@@ -241,10 +242,10 @@ export default function ScriptDisplay({
 
     try {
       // Use Azure OpenAI GPT-4o for script generation
-      const endpoint = import.meta.env.VITE_OPENAI_ENDPOINT
-      const apiKey = import.meta.env.VITE_OPENAI_KEY
-      const model = import.meta.env.VITE_OPENAI_MODEL
-      const apiVersion = import.meta.env.VITE_API_VERSION
+      const endpoint = getKey('OPENAI_ENDPOINT')
+      const apiKey = getKey('OPENAI_KEY')
+      const model = getKey('OPENAI_MODEL')
+      const apiVersion = getKey('API_VERSION')
 
       if (!endpoint || !apiKey) {
         alert('Azure OpenAI credentials not configured. Please check your .env file.')
@@ -437,10 +438,10 @@ Create a short (2-3 sentences) presenter's script that:
         if (!nextContent || nextContent.includes('[Error')) return
 
         // Generate script for next page
-        const endpoint = import.meta.env.VITE_OPENAI_ENDPOINT
-        const apiKey = import.meta.env.VITE_OPENAI_KEY
-        const model = import.meta.env.VITE_OPENAI_MODEL
-        const apiVersion = import.meta.env.VITE_API_VERSION
+        const endpoint = getKey('OPENAI_ENDPOINT')
+        const apiKey = getKey('OPENAI_KEY')
+        const model = getKey('OPENAI_MODEL')
+        const apiVersion = getKey('API_VERSION')
 
         if (!endpoint || !apiKey) return
 
@@ -550,8 +551,8 @@ Create a short (2-3 sentences) presenter's script that:
             let audioResponse
             if (isDutch) {
               // Use ElevenLabs for Dutch
-              const elevenlabsKey = import.meta.env.VITE_ELEVENLABS_API_KEY
-              const voiceId = import.meta.env.VITE_ELEVENLABS_DUTCH_VOICE_ID
+              const elevenlabsKey = getKey('ELEVENLABS_API_KEY')
+              const voiceId = getKey('ELEVENLABS_DUTCH_VOICE_ID')
 
               if (elevenlabsKey && voiceId) {
                 audioResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -568,7 +569,7 @@ Create a short (2-3 sentences) presenter's script that:
               }
             } else {
               // Use Deepgram for other languages
-              const deepgramKey = import.meta.env.VITE_DEEPGRAM_API_KEY
+              const deepgramKey = getKey('DEEPGRAM_API_KEY')
               if (deepgramKey && deepgramKey !== 'your_deepgram_api_key_here') {
                 audioResponse = await fetch('https://api.deepgram.com/v1/speak?model=aura-2-hermes-en', {
                   method: 'POST',

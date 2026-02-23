@@ -1,3 +1,4 @@
+import { getKey } from '../utils/apiKeys'
 import { useState } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import { Muxer, ArrayBufferTarget } from 'webm-muxer'
@@ -94,10 +95,10 @@ export default function ExportVideo({
 
             console.log(`[Extract] Slide ${pageNumber} image size: ${Math.round(imageDataUrl.length / 1024)}KB, dimensions: ${canvas.width}x${canvas.height}`)
 
-            const endpoint = import.meta.env.VITE_OPENAI_ENDPOINT
-            const apiKey = import.meta.env.VITE_OPENAI_KEY
-            const model = import.meta.env.VITE_OPENAI_MODEL
-            const apiVersion = import.meta.env.VITE_API_VERSION
+            const endpoint = getKey('OPENAI_ENDPOINT')
+            const apiKey = getKey('OPENAI_KEY')
+            const model = getKey('OPENAI_MODEL')
+            const apiVersion = getKey('API_VERSION')
 
             if (!endpoint || !apiKey) {
               reject(new Error('Azure OpenAI not configured'))
@@ -205,10 +206,10 @@ export default function ExportVideo({
     total: number
   ): Promise<string> => {
     return retryWithBackoff(async () => {
-      const endpoint = import.meta.env.VITE_OPENAI_ENDPOINT
-      const apiKey = import.meta.env.VITE_OPENAI_KEY
-      const model = import.meta.env.VITE_OPENAI_MODEL
-      const apiVersion = import.meta.env.VITE_API_VERSION
+      const endpoint = getKey('OPENAI_ENDPOINT')
+      const apiKey = getKey('OPENAI_KEY')
+      const model = getKey('OPENAI_MODEL')
+      const apiVersion = getKey('API_VERSION')
 
       if (!endpoint || !apiKey) {
         throw new Error('Azure OpenAI not configured')
@@ -271,8 +272,8 @@ export default function ExportVideo({
       console.log(`[Export] Generating audio in ${isDutch ? 'Dutch (ElevenLabs)' : 'English (Deepgram)'}`)
 
       if (isDutch) {
-        const elevenlabsKey = import.meta.env.VITE_ELEVENLABS_API_KEY
-        const voiceId = import.meta.env.VITE_ELEVENLABS_DUTCH_VOICE_ID
+        const elevenlabsKey = getKey('ELEVENLABS_API_KEY')
+        const voiceId = getKey('ELEVENLABS_DUTCH_VOICE_ID')
 
         if (!elevenlabsKey || !voiceId) {
           throw new Error('ElevenLabs not configured for Dutch audio')
@@ -297,7 +298,7 @@ export default function ExportVideo({
         }
         return await response.blob()
       } else {
-        const deepgramKey = import.meta.env.VITE_DEEPGRAM_API_KEY
+        const deepgramKey = getKey('DEEPGRAM_API_KEY')
 
         if (!deepgramKey || deepgramKey === 'your_deepgram_api_key_here') {
           throw new Error('Deepgram not configured for English audio')
